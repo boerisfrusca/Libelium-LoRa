@@ -1,0 +1,7 @@
+COMPILE:
+========
+
+make clean && make release NAME=lora_sender
+make clean && make release NAME=lora_config
+make clean && make release NAME=lora_setup
+
