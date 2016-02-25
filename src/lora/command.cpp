@@ -494,7 +494,7 @@ namespace lora
         }
       }
 
-      return 1;
+      return size;
 
     }
 
@@ -745,7 +745,7 @@ namespace lora
       };
 
       uint8_t state = LOOKFOR_START;
-      std::string field;
+      std::string field = "";
 
       for (uint8_t i = 0; i < size; i++)
       {
@@ -782,7 +782,9 @@ namespace lora
         }
       }
 
-      return 1;
+      m_error = field;
+
+      return size;
 
     }
 

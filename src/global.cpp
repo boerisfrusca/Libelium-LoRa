@@ -139,7 +139,7 @@ void process_buffer(uint8_t *rx_buffer, size_t sz)
           lora::command::Error m;
           m.createFromBuffer((uint8_t *) payload, psize);
 
-          std::cout << "Lo-Ra error :" << m.error() << std::endl;
+          std::cout << "Lo-Ra error : " << m.error() << std::endl;
         }
           break;
 
