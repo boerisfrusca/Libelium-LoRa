@@ -570,7 +570,7 @@ void print_help(void)
       << std::endl;
   std::cerr << "       " << LORA_NAME << " -h" << std::endl << std::endl;
   std::cerr
-      << " -a : destination address. It must be a number between 1 and 255. Default value is 1 (broadcast)"
+      << " -a : node address. It must be a number between 1 and 255. Default value is 0 (broadcast)"
       << std::endl;
   std::cerr
       << " -b : serial bitrate [1200|2400|4800|9600|19200|38400|57600|115200]. Default value is "
