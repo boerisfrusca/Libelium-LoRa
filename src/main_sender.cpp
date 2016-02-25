@@ -35,6 +35,12 @@ int main_sender(int argc, char **argv)
   // Serial device handler
   lora::Serial serial;
 
+  if ( argc == 1)
+  {
+    print_help();
+    return 1;
+  }
+
   // Parse command line
   while ((opt = getopt(argc, argv, "v:a:b:d:hm:t:")) != -1)
   {
