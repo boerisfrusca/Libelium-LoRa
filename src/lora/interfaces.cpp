@@ -53,12 +53,12 @@ namespace lora
 
   uint8_t Command::createFieldCRC(uint8_t *buffer, uint8_t size)
   {
-    if (buffer == 0 || size < SZ_CRC)
+    if (buffer == 0 || size < SZ_CRC /* sizeof(m_crc) */)
       return 0;
 
     uint8_t index = 0;
 
-    for (uint8_t i = 0; i < SZ_CRC_BINARY; i++)
+    for (uint8_t i = 0; i < SZ_CRC_BINARY/* ( sizeof(m_crc) * 2 ) */; i++)
     {
       uint8_t low = 0;
       uint8_t high = 0;
@@ -376,7 +376,7 @@ namespace lora
 
     if (state != MSG_FOUND)
     {
-      ret = INVALID_MSG;
+      ret = CMD_NOT_FOUND;
     }
     else
     {

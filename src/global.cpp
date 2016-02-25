@@ -155,7 +155,7 @@ void process_buffer(uint8_t *rx_buffer, size_t sz)
     }
       break;
 
-    case lora::Command::INVALID_MSG:
+    case lora::Command::CMD_NOT_FOUND:
     {
       std::cout << "Message not Found!" << std::endl;
     }

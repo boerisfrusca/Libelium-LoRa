@@ -45,12 +45,14 @@
  *
  * Internal code to identify a Lo-Ra command implemented by the Libelium SX1272
  * LoRa module. The commands used for the module are:
- *   - \bREAD  : gets the current setup of the module
- *   - \bSET   : sets a new configuration in the module
- *   - \bDATA  : sends data from the module to a Waspmote
- *   - \bERROR : notifies an error in the information received
- *   - \bINFO  : with this command, the modules gives its setup
- *   - \bACK   : with this command, the modules notifies that a message has been successfully received
+ *
+ *   - \bREAD  : gets the current setup of the module.
+ *   - \bSET   : sets a new configuration in the module.
+ *   - \bDATA  : sends data from the module to a Waspmote.
+ *   - \bERROR : notifies an error in the information received.
+ *   - \bINFO  : with this command, the modules gives its setup.
+ *   - \bACK   : with this command, the modules notifies that a message has been successfully received.
+ *
  */
 enum _COMMAND
 {

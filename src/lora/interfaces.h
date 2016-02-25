@@ -15,40 +15,75 @@
 namespace lora
 {
   /**
-   * Interface for a generic LoRa Command.
+   * @brief Interface for a generic LoRa Command.
+   *
+   * The Libelium SX1272 LoRa protocol uses some special characters that
+   * ensure the orders are properly read and the a checksum to avoid possible
+   * transmission errors.
+   * Special characters are:
+   *
+   *    - SOH : start of header (ASCII 0x01).
+   *    - CR + LF: carry return and line feed (ASCII 0x0D + 0x0A).
+   *    - EOT : end of transmission (ASCII 0x04).
+   *
+   * Error check is based on modbus CRC16.
+   *
+   * The Libelium SX1272 LoRa module uses the following command:
+   *
+   *    - \bREAD  : gets the current setup of the module.
+   *    - \bSET   : sets a new configuration in the module.
+   *    - \bDATA  : sends data from the module to a Waspmote.
+   *    - \bERROR : notifies an error in the information received.
+   *    - \bINFO  : with this command, the modules gives its setup.
+   *    - \bACK   : with this command, the modules notifies that a message has been successfully received.
+   *
+   * Command are a sequence of bytes with the following structure:
+   *
+   * | SOH | Command_Type | <Data_Separator> | <Data> | CR | LF | CRC16 | EOT |
+   *
+   * where:
+   *    - Command_Type : command name in ASCII
+   *    - Data_Separator : optional field. It is a character ('#', ASCII 0x23) and separates the Command_Type field from the Data.
+   *    - Data : optional field. It is a ASCII characters sequence.
+   *    - CRC16 : code for the bytes between SOH and CR + LF (not including these). It is 2 hexadecimal bytes and they are codify as ASII string (e.g. 0x2A31 becomes 0x32, 0x41, 0x33, 0x31).
+   *
    */
   class Command
   {
     public:
-      /// Maximum Payload length
+      /// Maximum length of the payload field (<Data_Separator> + <Data>)
       static const uint8_t PAYLOAD_MAX_LENGTH = 255;
 
       /// Header size in bytes (byte SOH)
       static const uint8_t SZ_START = 1;
 
-      /// Size of the command field in bytes.
+      /// Size of the command field in bytes. Values 0 means unknown.
       static const uint8_t SZ_CMD = 0;
 
-      /// Size of the payload in bytes.
+      /// Size of the payload in bytes. Values 0 means unknown.
       static const uint8_t SZ_PAYLOAD = 0;
 
       /// Size of the field separator in bytes.
       static const uint8_t SZ_FS = 2;
 
-      /// Size of the separator between payload and CRC. It is 2 bytes (CR + LF).
+      /// Size of the separator before the CRC. It is 2 bytes (CR + LF).
       static const uint8_t SZ_SEPARATOR = 2;
 
       /// CRC size as binary value
       static const uint8_t SZ_CRC_BINARY = 2;
 
-      /// CRC size in bytes. 2 binary bytes becomes 4 ASCII byte (hexadecimal number)
+      /// CRC size as ASCII string. 2 binary bytes becomes 4 ASCII byte (hexadecimal number).
       static const uint8_t SZ_CRC = SZ_CRC_BINARY * 2;
 
       /// End sequence size in bytes (byte EOT)
       static const uint8_t SZ_END = 1;
 
       /**
-       * Special characters
+       * @brief Special characters.
+       *
+       *  The Libelium SX1272 LoRa protocol uses some special characters that
+       *  ensure the orders are properly read and the a checksum to avoid possible
+       *  transmission errors.
        */
       enum S_CHAR
       {
@@ -69,23 +104,25 @@ namespace lora
       };
 
       /**
-       * Waspmote LoRa message type
+       * @brief Special characters.
+       *
+       *  Commands implemented by the Libelium SX1272 LoRa protocol.
        */
       enum CMD_TYPE
       {
-        /// Unknown
+        /// Unknown or not valid command.
         UNKNOWN = 0x00,
 
-        /// READ - Gets the current setup of the module
+        /// READ : gets the current setup of the module.
         READ = 0x01,
 
-        /// SET - Sets a new configuration of the model
+        /// SET : sets a new configuration of the model.
         SET = 0x02,
 
-        /// DATA - Sends data from the module to a Waspmote
+        /// DATA : sends data from the module to a Waspmote.
         DATA = 0x03,
 
-        /// ERROR - Notifies an error in the information received
+        /// ERROR : notifies an error in the information received.
         ERROR = 0x04,
 
         /// INFO - With this command, the module gives its setup
@@ -96,35 +133,54 @@ namespace lora
       };
 
       /**
-       * Error code
+       * @brief Error codes returned by functions.
        */
       enum _ERROR_CODE
       {
+        /// No error.
         NO_ERROR = 0x00,
+
+        /// Input buffer undefined.
         NULL_BUFFER_IN = 0x01,
+
+        /// Output buffer undefined.
         NULL_BUFFER_OUT = 0x02,
+
+        /// Invalid command type.
         INVALID_CMD = 0x03,
+
+        /// Error while searching the payload.
         INVALID_PAYLOAD_1 = 0x04,
+
+        /// Error while searching the payload, not found CR + LF.
         INVALID_PAYLOAD_2 = 0x05,
+
+        /// Invalid CRC field.
         INVALID_CRC = 0x07,
+
+        /// EOT not found.
         INVALID_EOT = 0x08,
-        INVALID_MSG = 0x09,
+
+        /// Command not found.
+        CMD_NOT_FOUND = 0x09,
       };
 
       /**
-       * Calculate modbud CRC16.
+       * @brief Calculates modbud CRC16.
        *
-       * \param[in] buf data buffer
-       * \param[in] len buffer size (number of bytes)
+       * This function calculates the modbus checksum on a byte array and returns it as number on 2 bytes.
        *
-       * \return CRC
+       * @param[in] buf data buffer.
+       * @param[in] len buffer size (number of bytes)
+       *
+       * @returns CRC16 value.
        */
       static uint16_t CRC16(uint8_t *buf, size_t len);
 
       /**
-       * Creates an empty LoRa command for WaspMote.
-       *
-       */
+        * @brief Creates an empty LoRa command for WaspMote.
+        *
+        */
       Command() :
           m_type(UNKNOWN), m_crc(0), m_size(0)
       {
@@ -132,10 +188,11 @@ namespace lora
       ;
 
       /**
-       * Copy constructor
-       *
-       * \param cmd command source
-       */
+        * @brief Copy constructor.
+        *
+        * @param[in] cmd command source object.
+        *
+        */
       Command(const Command &cmd)
       {
         m_type = cmd.m_type;
@@ -145,28 +202,33 @@ namespace lora
       ;
 
       /**
-       * Destroy a serial device object.
-       *
-       */
-      virtual ~Command()
+        * @brief Destroys a command.
+        *
+        */
+     virtual ~Command()
       {
       }
       ;
 
-      /**
-       * Gets the command type
-       *
-       * \return type of the command, according to lora::CMD_TYPE
-       */
+     /**
+      * @brief Gets the command type.
+      *
+      * This function returns the command type as a code according to
+      * lora::Command::CMD_TYPE enum.
+      *
+      * @returns command type.
+      */
       inline uint8_t type()
       {
         return m_type;
       }
 
       /**
-       * Gets the modbus CRC16
+       * @brief Gets the checksum.
        *
-       * \return CRC
+       * This function returns the checksum as a number on 2 bytes.
+       *
+       * @returns CRC.
        */
       inline uint16_t crc()
       {
@@ -174,9 +236,11 @@ namespace lora
       }
 
       /**
-       * Returns the message size (number of byte)
+       * @brief Gets the size of the message.
        *
-       * \return the size of the message in number of byte.
+       * This function returns the length of the message. If it is 0, means size is unknown.
+       *
+       * @returns message length.
        */
       virtual uint8_t size()
       {
@@ -185,110 +249,133 @@ namespace lora
       ;
 
       /**
-       * Processes a buffer of size "sz" and extract the command type, data payload and CRC value.
+       * @brief Processes a buffer of size "sz" bytes.
        *
-       * \param[in] buffer buffer to process
-       * \param[in] sz size of the buffer to process
-       * \param[out] type command type
-       * \param[out] payload buffer where data-paylod is saved
-       * \param[out] p_size size of the payload buffer
-       * \param[out] crc Modbus CRC 16 contained in the received message
+       * This function processes a buffer of size "sz" bytes and extract command
+       * type, payload (<Data_Separator> + <Data>), payload length and CRC value.
        *
-       * \return lora::Command::NO:ERROR if a command is extracted from the buffer, a lora::Command::_ERROR_CODE code otherwise
+       * @param[in] buffer buffer to process
+       * @param[in] sz size of the buffer to process
+       * @param[out] type command type
+       * @param[out] payload buffer where data-paylod is saved
+       * @param[out] p_size size of the payload buffer
+       * @param[out] crc Modbus CRC 16 contained in the received message
+       *
+       * @returns lora::Command::NO:ERROR if a command is extracted from the buffer, a lora::Command::_ERROR_CODE code otherwise.
        */
       static uint8_t process(const uint8_t *buffer, const size_t sz, uint8_t &type,
           uint8_t *payload, size_t &p_size, uint16_t &crc);
 
     protected:
       /**
-       * Processes a textual string (field) with the following format: "<tag><fs><value>". This functions
-       * returns the value as a std::sting.
+       * @brief Processes a string (field) with the following format: "<tag><fs><value>".
        *
-       * \param[in] field string to process
-       * \param[in] tag label of the value to extract
-       * \param[in] fs field separator
-       * \param[out] val value to return
+       * This function processes a string  with the following format: "
+       * <tag><fs><value>" and it returns the value as a string if tag is found.
        *
-       * \return true  if tag is found, false in case of errors.
+       * @param[in] field string to process.
+       * @param[in] tag label of the value to extract.
+       * @param[in] fs field separator.
+       * @param[out] val value to return.
+       *
+       * @returns true  if tag is found, false in case of errors.
        */
       bool processField(const std::string &field, const std::string &tag, const std::string &fs,
           std::string &value);
 
       /**
-       * Processes a textual string (field) with the following format: "<tag><fs><value>". This functions
-       * returns the value as a long number.
+       * @brief Processes a string (field) with the following format: "<tag><fs><value>".
        *
-       * \param[in] field string to process
-       * \param[in] tag label of the value to extract
-       * \param[in] fs field separator
-       * \param[out] val value to return
+       * This function processes a string  with the following format: "
+       * <tag><fs><value>" and it returns the value as a long integer if tag is found.
        *
-       * \return true  if tag is found, false in case of errors.
+       * @param[in] field string to process.
+       * @param[in] tag label of the value to extract.
+       * @param[in] fs field separator.
+       * @param[out] val value to return.
+       *
+       * @returns true  if tag is found, false in case of errors.
        */
       bool processField(const std::string &field, const std::string &tag, const std::string &fs,
           long &value);
 
       /**
-       * Creates message header.
+       * @brief Creates command header.
        *
-       * \param buffer array if byte where store he message
-       * \param size size of the buffer in number of bytes
+       * This function inserts in the first byte of a buffer the command header.
        *
-       * \return number of byte written into the buffer. 0 if there was an error.
+       * @param[out] buffer array where field is added.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t createFieldStart(uint8_t *buffer, uint8_t size);
 
       /**
-       * Creates the payload of the message.
+       * @brief Creates payload of the command (<Data_Separator> + <Data>).
        *
-       * \param buffer array where message payload is stored
-       * \param size size of the buffer in number of bytes
+       * This function inserts at the beginning of the buffer payload of the
+       * command (<Data_Separator> + <Data>).
        *
-       * \return number of byte processed from the buffer. 0 if there was an error.
+       * @param[out] buffer array where field is added.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t createPayload(uint8_t *buffer, size_t size);
 
       /**
-       * Creates field with the separator (before CRC).
+       * @brief Creates field separator before the CRC.
        *
-       * \param buffer array if byte where store he message
-       * \param size size of the buffer in number of bytes
+       * This function inserts at the beginning of the buffer the separator
+       * between data and CRC ( CR + LF characters).
        *
-       * \return number of byte written into the buffer. 0 if there was an error.
+       * @param[out] buffer array where field is added.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t createFieldSeparator(uint8_t *buffer, uint8_t size);
 
       /**
-       * Creates field with the CRC.
+       * @brief Creates the CRC field of the command.
        *
-       * \param buffer array if byte where store he message
-       * \param size size of the buffer in number of bytes
+       * This function inserts at the beginning of the buffer the CRC
+       * as a sequence of ASCII bytes.
        *
-       * \return number of byte written into the buffer. 0 if there was an error.
+       * @param[out] buffer array where field is added.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t createFieldCRC(uint8_t *buffer, uint8_t size);
 
       /**
-       * Creates message header.
+       * @brief Creates the stop sequence of the command.
        *
-       * \param buffer array if byte where store he message
-       * \param size size of the buffer in number of bytes
+       * This function inserts at the beginning of the buffer the EOT byte.
        *
-       * \return number of byte written into the buffer. 0 if there was an error.
+       * @param[out] buffer array where field is added.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t createFieldEnd(uint8_t *buffer, uint8_t size);
 
       /**
-       * Creates field type
+       * @brief Creates the type field of the command.
        *
-       * \param buffer array if byte where store he message
-       * \param size size of the buffer in number of bytes
+       * This function inserts at the beginning of the buffer the command
+       * type as an ASCII string.
        *
-       * \return number of byte written into the buffer. 0 if there was an error.
+       * @param[out] buffer array where field is added.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t createFieldType(uint8_t *buffer, uint8_t size) = 0;
 
-      //! Message type
+      //! Code of the message type
       uint8_t m_type;
 
       //! ModBus CRC16
@@ -298,12 +385,21 @@ namespace lora
       uint8_t m_size;
   };
 
+  /**
+   * @brief Interface for a generic command to send to the Libelium SX1272
+   * LoRa module.
+   *
+   * An output command is a sequence of bytes corresponding to a LoRa command.
+   * This byte stream is then written on the serial device so this interface
+   * exports a function (serialize) for transforming the command description
+   * in a byte sequence and storing it in a array (data buffer).
+   */
   class OutputCommand
   {
     public:
 
       /**
-       * Creates an empty LoRa message for WaspMote.
+       * @brief Creates an empty output command.
        *
        */
       OutputCommand()
@@ -312,9 +408,10 @@ namespace lora
       ;
 
       /**
-       * Copy constructor
+       * @brief Copy constructor.
        *
-       * \param msg message source
+       * @param[in] cmd otput command object.
+       *
        */
       OutputCommand(const OutputCommand &cmd)
       {
@@ -322,7 +419,7 @@ namespace lora
       ;
 
       /**
-       * Destroy a serial device object.
+       * @brief Destroys an output command.
        *
        */
       virtual ~OutputCommand()
@@ -331,22 +428,33 @@ namespace lora
       ;
 
       /**
-       * Serialize a message storing it into a buffer
+       * @brief Creates the sequences of bytes for the output command.
        *
-       * \param buffer array if byte where store he message
-       * \param size size of the buffer in number of bytes
+       * This function creates the output command and saves it on a buffer.
        *
-       * \return number of byte written into the buffer. 0 if there was an error.
+       * @param[out] buffer array where command is saved.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte written. 0 if there was an error.
        */
       virtual uint8_t serialize(uint8_t *buffer, size_t size) = 0;
   };
 
+  /**
+   * @brief Interface for a generic command received from the Libelium SX1272
+   * LoRa module.
+   *
+   * An input command can be created from a byte stream received from the
+   * Libelium SX1272 LoRa module. This interface exports a function for
+   * looking for a command in a data buffer (where received byte are saved)
+   * and initializes all command attributes.
+   */
   class InputCommand
   {
     public:
 
       /**
-       * Creates an empty LoRa message for WaspMote.
+       * @brief Creates an empty input command.
        *
        */
       InputCommand()
@@ -355,9 +463,10 @@ namespace lora
       ;
 
       /**
-       * Copy constructor
+       * @brief Copy constructor.
        *
-       * \param msg message source
+       * @param[in] cmd input command object.
+       *
        */
       InputCommand(const InputCommand &cmd)
       {
@@ -365,7 +474,7 @@ namespace lora
       ;
 
       /**
-       * Destroy a serial device object.
+       * @brief Destroys an input command.
        *
        */
       virtual ~InputCommand()
@@ -374,41 +483,71 @@ namespace lora
       ;
 
       /**
-       * Creates message from buffer.
+       * @brief Creates command from a byte array.
        *
-       * \param buffer array where message payload is stored
-       * \param size size of the buffer in number of bytes
+       * This function creates an input command looking for a command in a array
+       * of bytes.
        *
-       * \return number of byte processed from the buffer. 0 if there was an error.
+       * @param[out] buffer array of the received bytes.
+       * @param[in] size size of the buffer (number of bytes).
+       *
+       * @returns number of byte processed. 0 if there was an error.
        */
       virtual uint8_t createFromBuffer(uint8_t *buffer, size_t size) = 0;
   };
 
+  /**
+   * @brief Interface for a generic configuration LoRa Command.
+   *
+   * The Libelium SX1272 LoRa module allows to set up the following transmission parameter:
+   *
+   *    - ADDR : Node address.
+   *    - FREQ : Frequency band.
+   *    - CH   : Channel.
+   *    - BW   : Bandwidth.
+   *    - CR   : Coding rate.
+   *    - SF   : Spreading factor.
+   *
+   *  It can returns some additional information as RSSI, packet RSSI and SNR.
+   *
+   *  Address must be a number between 1 and 255 (0 is for broadcast message).
+   *  Frequency bands allowed are 868 MHz (Europe) and 900 MHz (US).
+   *  Channels allowed are 10 to 17 for 868 MHz band and 0 to 12 for 900 MHZ band.
+   *  Bandwidth can be 125, 250 or 500 KHz.
+   *  Coding rate is a number between 5 and 8.
+   *  Spreading factor is a number between 6 and 12.
+   *
+   */
   class ConfigCommand : public Command
   {
     public:
 
       /**
-       * LoRa Frequency. Frequency bands allowed are 868 and 900 MHz.
+       * @brief Codes for frequency band supported by the LoRa module.
+       *
+       *  Frequency bands allowed are 868 MHz (Europe) and 900 MHz (US).
        */
       enum _FREQUENCY
       {
-        /// Undefined Channel
+        /// Undefined or not valid frequency band.
         F_UNKN = 0xFF,
 
-        /// 868 MHz
+        /// 868 MHz (Europe)
         F_868 = 0x00,
 
-        /// 900 MHz
+        /// 900 MHz (US)
         F_900 = 0x01,
       };
 
       /**
-       * LoRa channel. Channels allowed are 10 to 17 for 868 MHz band and 00 to 12 for 900 MHz band.
+       * @brief Codes for LoRa channel.
+       *
+       *  Channels allowed are 10 to 17 for 868 MHz band and 0 to 12 for 900 MHZ band.
+       *
        */
       enum _FREQUENCY_CHANNEL
       {
-        /// Undefined Channel
+        /// Undefined or not valid channel
         CH_UNKN = 0xFF,
 
         /// Channel 0
@@ -467,11 +606,14 @@ namespace lora
       };
 
       /**
-       * LoRa channel bandwidth. Bandwidth allowed are 125, 250 and 500 KHz.
+       * @brief Codes for bandwidth.
+       *
+       *  Bandwidth allowed are 125, 250 and 500 KHz.
+       *
        */
       enum _BANDWIDTH
       {
-        /// Undefined bandwidth
+        /// Undefined or not valid bandwidth
         BW_UNKN = 0xFF,
 
         /// Bandwidth 125 KHz
@@ -485,32 +627,38 @@ namespace lora
       };
 
       /**
-       * LoRa coding rate. It must be a number between 5 and 8
+       * @brief Codes for the coding rate.
+       *
+       *  Coding rate is a number between 5 and 8.
+       *
        */
       enum _CODING_RATE
       {
-        /// Undefined coding rate
+        /// Undefined or not valid coding rate
         CR_UNKN = 0xFF,
 
         /// Coding rate 5
         CR_5 = 0x00,
 
-        /// Coding rate 5
+        /// Coding rate 6
         CR_6 = 0x01,
 
-        /// Coding rate 5
+        /// Coding rate 7
         CR_7 = 0x02,
 
-        /// Coding rate 5
+        /// Coding rate 8
         CR_8 = 0x03,
       };
 
       /**
-       * LoRa spreading factor. It must be a value number 6 and 12
+       * @brief Codes for the spreading factor.
+       *
+       *  Spreading factor is a number between 6 and 12.
+       *
        */
       enum _SPREADING_FACTOR
       {
-        /// Undefined spreading factor
+        /// Undefined or not valid spreading factor
         SF_UNKN = 0xFF,
 
         /// Spreading factor 6
@@ -525,7 +673,7 @@ namespace lora
         /// Spreading factor 9
         SF_9 = 0x03,
 
-        /// Spreading factor 0
+        /// Spreading factor 10
         SF_10 = 0x04,
 
         /// Spreading factor 11
@@ -536,86 +684,107 @@ namespace lora
       };
 
       /**
-       * Creates a CFG LoRa message for WaspMote.
+       * @brief Creates an empty configuration command.
        *
        */
       ConfigCommand();
 
       /**
-       * Copy constructor
+       * @brief Copy constructor.
        *
-       * \param msg message source
+       * @param[in] cmd configuration command object.
+       *
        */
       ConfigCommand(const ConfigCommand &cmd);
 
       /**
-       * Destroy a serial device object.
+       * @brief Destroys a configuration command.
        *
        */
       virtual ~ConfigCommand();
 
       /**
-       * Sets frequency band to a code value according to MessageCFG::_FREQUENCY enum.
-       * Frequency bands allowed are 868 and 900 MHz, for other values frequency will be considered
-       * as unknown and not valid.
+       * @brief Sets frequency band to a specific frequency code.
        *
-       * \param[in] freq frequency code.
+       * This function sets the frequency band selecting it using a frequency
+       * code, according to lora::ConfigCommand::_FREQUENCY enum.
+       * Frequency bands allowed are 868 MHz (Europe) and 900 MHz (US).
        *
-       * \return false if frequency value is not allowed, true otherwise.
+       * @param[in] freq frequency code.
+       *
+       * @returns false if frequency value is not allowed, true otherwise.
        */
       bool setFrequency(uint8_t freq);
 
       /**
-       * Gets frequency band. If code parameter is true, function returns the frequency code according to
-       * MessageCFG::_FREQUENCY enum, otherwise it returns the frequency value in MHz.
+       * @brief Gets the frequency band.
        *
-       * \param code flag to select return value as frequency code or MHz value.
+       * This function returns the frequency band. If the parameter code is true
+       * frequency code (lora::ConfigCommand::_FREQUENCY) is returned else
+       * function return the frequency band in MHz.
        *
-       * \return the frequency code value .
+       * @param[in] code flag to select the type of value to return.
+       *
+       * @returns frequency code if code is true otherwise frequency band in MHz.
        */
       uint16_t frequency(bool code = true);
 
       /**
-       * Gets frequency band ad a printable string.
+       * @brief Gets the frequency band as a string.
        *
-       * \return the frequency band in MHz.
+       * This function returns the frequency band in MHz as a std::string.
+       *
+       * @returns frequency band in MHz.
        */
       std::string frequencyAsString();
 
       /**
-       * Sets LoRa channel to a code value according to MessageCFG::_FREQUENCY_CH enum.
-       * Channels allowed are 10 to 17 for 868 MHz band and 00 to 12 for 900 MHz band.
-       * Other values frequency will be considered as unknown and not valid.
+       * @brief Sets channel to a specific channel code.
        *
-       * \param[in] ch channel code.
+       * This function sets the channel selecting it using a channel
+       * code, according to lora::ConfigCommand::_FREQUENCY_CHANNEL enum.
+       * Channels allowed are 10 to 17 for 868 MHz band and 00 to 12 for
+       * 900 MHz band. Other channel values will be considered as unknown
+       * and not valid.
        *
-       * \return false if channel value is not allowed, true otherwise.
+       * @param[in] ch channel code.
+       *
+       * @returns false if channel value is not allowed, true otherwise.
        */
       bool setChannel(uint8_t ch);
 
       /**
-       * Gets the channel value. If code parameter is true, function returns the channel code according to
-       * MessageCFG::_CHANNEL enum, otherwise it returns the channel value.
+       * @brief Gets the channel value
        *
-       * \param code flag to select return value as channel code or value.
+       * This function returns the LoRa channel. If the parameter code is true
+       * channel label (defined in
+       * lora::ConfigCommand::_FREQUENCY_CHANNEL enum) is returned
+       * else function return the channel number.
        *
-       * \return the channel.
+       * @param[in] code flag to select the type of value to return.
+       *
+       * @returns channel label if code is true otherwise the channel number.
        */
       uint8_t channel(bool code = true);
 
       /**
-       * Gets channel ad a printable string.
+       * @brief Gets the channel number as a string.
        *
-       * \return the channel .
+       * This function returns the channel number as a std::string.
+       *
+       * @returns channel number.
        */
       std::string channelAsString();
 
       /**
-       * Sets the node address. It is a number between 1 and 255.
+       * @brief Sets the node address.
        *
-       * \param[in] addr channel code.
+       * This function sets the node address. It is a number between 1 and
+       * 255 (0 is for broadcast message).
        *
-       * \return false if address value is not valid, true otherwise.
+       * @param[in] addr node address.
+       *
+       * @returns false if node address value is valid, true otherwise.
        */
       inline bool setAddress(uint8_t addr)
       {
@@ -624,9 +793,11 @@ namespace lora
       }
 
       /**
-       * Gets the node address.
+       * @brief Gets the node address.
        *
-       * \return node address.
+       * This function returns the node address.
+       *
+       * @returns node address.
        */
       inline uint8_t address()
       {
@@ -634,109 +805,160 @@ namespace lora
       }
 
       /**
-       * Sets LoRa channel bandwidth to a code value according to MessageCFG::_BANDWIDTH enum.
-       * Bandwidth allowed are 125, 250 and 500 KHz.
-       * Other values frequency will be considered as unknown and not valid.
+       * @brief Sets the channel bandwidth to a specific bandwidth code.
        *
-       * \param[in] bw bandwidth code.
+       * This function sets the  channel bandwidth selecting it using a
+       * code, according to lora::ConfigCommand::_BANDWIDTH enum.
+       * Bandwidth can be 125, 250 or 500 KHz.
        *
-       * \return false if bandwidth value is not allowed, true otherwise.
+       * @param[in] bw bandwidth code.
+       *
+       * @returns false if bandwidth code is not allowed, true otherwise.
        */
       bool setBandwidth(uint8_t bw);
 
       /**
-       * Gets the bandwidth. If code parameter is true, function returns the bandwidth code according to
-       * MessageCFG::_BANDWIDTH enum, otherwise it returns the bandwidth value.
+       * @brief Gets the bandwidth value.
        *
-       * \param code flag to select return value as bandwidth code or value in KHz.
+       * This function returns the channel bandwidth. If the parameter code is true
+       * bandwidth label (defined in
+       * lora::ConfigCommand::_FREQUENCY_CHANNEL enum) is returned
+       * else function return the bandwidth value in KHz.
        *
-       * \return the channel.
+       * @param[in] code flag to select the type of value to return.
+       *
+       * @returns bandwidth label if code is true otherwise the bandwidth value in KHz.
        */
       uint16_t bandwidth(bool code = true);
 
       /**
-       * Gets bandwidth ad a printable string.
+       * @brief Gets the bandwidth as a printable string.
        *
-       * \return the bandwidth.
+       * This function returns the bandwidth value (in KHz) as a std::string.
+       *
+       * @returns bandwidth number.
        */
       std::string bandwidthAsString();
 
-
       /**
-       * Sets LoRa coding-rate. It must be a number between 5 and 8.
+       * @brief Sets coding-rate to a specific code.
        *
-       * \param[in] cr coding-rate.
+       * This function sets the coding-rate selecting it using a
+       * code, according to lora::ConfigCommand::_CODING_RATE enum.
+       * Coding rate is a number between 5 and 8. Other channel values
+       * will be considered as unknown and not valid.
        *
-       * \return false if coding-rate value is not allowed, true otherwise.
+       * @param[in] cr coding-rate.
+       *
+       * @returns false if coding-rate value is not allowed, true otherwise.
        */
       bool setCodingRate(uint8_t cr);
 
       /**
-       * Gets the coding-rate.
+       * @brief Gets the coding-rate value.
        *
-       * \return the coding-rate value according to MessageCFG::_CODING_RATE enum.
-       */
-
-      /**
-       * Gets the coding-rate value. If code parameter is true, function returns the coding-rate code according to
-       * MessageCFG::_CODING_RATE enum, otherwise it returns the coding-rate value.
+       * This function returns the coding-rate. If the parameter code is true
+       * coding-rate label (defined in
+       * lora::ConfigCommand::_CODING_RATE enum) is returned
+       * else function return the coding-rate number.
        *
-       * \param code flag to select return value as coding-rate code or value.
+       * @param[in] code flag to select the type of value to return.
        *
-       * \return the coding-rate.
+       * @returns coding-rate label if code is true otherwise the channel number.
        */
       uint8_t codingRate(bool code = true);
 
       /**
-       * Gets coding-rate ad a printable string.
+       * @brief Gets the coding-rate as a printable string.
        *
-       * \return the coding-rate .
+       * This function returns the coding-rate value as a std::string.
+       *
+       * @returns coding-rate value.
        */
       std::string codingRateAsString();
 
 
+      /**
+       * @brief Sets spreading factor to a specific code.
+       *
+       * This function sets the spreading factor selecting it using a
+       * code, according to lora::ConfigCommand::_SPREADING_FACTOR enum.
+       * Coding rate is a number between 6 and 12. Other channel values
+       * will be considered as unknown and not valid.
+       *
+       * @param[in] sf spreading factor.
+       *
+       * @returns false if spreading factor value is not allowed, true otherwise.
+       */
       bool setSpreadingFactor(uint8_t sf);
 
       /**
-       * Gets the spreading factor value. If code parameter is true, function returns the spreading factor code according to
-       * MessageCFG::_SPREADING_FACTOR enum, otherwise it returns the spreading factor value.
+       * @brief Gets the spreading factor value.
        *
-       * \param code flag to select return value as spreading factor code or value.
+       * This function returns  the spreading factor value. If code parameter
+       * is true, function returns the spreading factor code according to
+       * lora::ConfigCommand::_SPREADING_FACTOR enum, otherwise it returns the
+       * spreading factor value.
        *
-       * \return the spreading factor.
+       * @param[in] code flag to select the type of value to return.
+       *
+       * @returns spreading factor label if code is true otherwise the spreading factor number.
        */
       uint8_t spreadingFactor(bool code = true);
 
       /**
-       * Gets spreading factor ad a printable string.
+       * @brief Gets the spreading factor as a printable string.
        *
-       * \return the spreading factor .
+       * This function returns the spreading factor value as a std::string.
+       *
+       * @returns spreading factor value.
        */
       std::string spreadingFactorAsString();
 
+      /**
+       * @brief Gets the RSSI.
+       *
+       * This function returns the RSSI.
+       *
+       * @returns RSSI value.
+       */
       inline int rssi()
       {
         return m_rssi;
       }
 
+      /**
+       * @brief Gets the SNR.
+       *
+       * This function returns the SNR.
+       *
+       * @returns SNR value.
+       */
       inline int snr()
       {
         return m_snr;
       }
 
+      /**
+       * @brief Gets the packet RSSI.
+       *
+       * This function returns the packet RSSI.
+       *
+       * @returns packet RSSI value.
+       */
       inline int rssi_pck()
       {
         return m_rssi_pck;
       }
 
     protected:
-      //! LoRa frequency
+      //! LoRa frequency band
       uint8_t m_freq;
 
       //! LoRa channel
       uint8_t m_ch;
 
-      //! Address
+      //! Node address
       uint8_t m_addr;
 
       //! Bandwidth
