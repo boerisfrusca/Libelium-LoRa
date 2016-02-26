@@ -40,6 +40,7 @@ To compile use the command:
 $ make clean && make release NAME=lora_config
 $ make clean && make release NAME=lora_setup
 $ make clean && make release NAME=lora_sender
+$ make clean && make release NAME=lora_daemon
 ```
 
 If there are no errors will be generated the following files:
@@ -100,7 +101,7 @@ This command writea ne configuration in the LoRa module (connected to the LoRa G
 Syntax is:
 
 ```
-Usage: lora_setup [-v 0|1|2]  [-s serial_device] [-b serial_bitrate] [-a address] [-f frequency] [-c channel] [-w bandwidth] [-r coding_rate] [-s spreading_factor]
+Usage: lora_setup [-v 0|1|2] [-d serial_device] [-b serial_bitrate] [-a address] [-f frequency] [-c channel] [-w bandwidth] [-r coding_rate] [-s spreading_factor]
        lora_setup -h
 
  -a : node address. It must be a number between 1 and 255. Default value is 0 (broadcast)
@@ -126,7 +127,7 @@ This command sends an ASCII message to a LoRa node.
 Syntax is:
 
 ```
-Usage: lora_sender [-v 0|1|2] [-d [0-255]] [-m "message"] [-s serial_device] [-b serial_bitrate]
+Usage: lora_sender [-v 0|1|2] [-d serial_device] [-b serial_bitrate][-a [0-255]] [-m \"message\"] [-t timeot]
        lora_sender -h
 
  -a : destination address. It must be a number between 1 and 255, 0 is for broadcast message. Default value is 0 (broadcast)
@@ -134,6 +135,28 @@ Usage: lora_sender [-v 0|1|2] [-d [0-255]] [-m "message"] [-s serial_device] [-b
  -d : serial device. Default value is /dev/ttyUSB0.
  -h : display this message.
  -m : message to send. It must be a string ASCII.
+ -t : timeout to wait response in seconds. if it is 0 no response are waited. Default value is 100 seconds
+ -v : set verbosity level  [0|1|2].
+```
+
+This command waits an acknowledge from the destination, if you want disable this feature you can use the option *-t 0*.
+
+
+## lora_daemon
+
+This command sends all ASCII message sequence reveived from a FIFO file to a LoRa node. All messages ends with a new line.
+
+Syntax is:
+
+```
+Usage: lora_daemon [-v 0|1|2] [-s serial_device] [-b serial_bitrate] [-a [0-255]] [-p <pipe-path>] [-t timeout]
+       lora_daemon -h
+
+ -a : destination address. It must be a number between 1 and 255, 0 is for broadcast message. Default value is 0 (broadcast)
+ -b : serial bitrate [1200|2400|4800|9600|19200|38400|57600|115200]. Default value is 38400.
+ -d : serial device. Default value is /dev/ttyUSB0.
+ -h : display this message.
+ -p : pipe used for receiving data to send. Default value is /tmp/lora.pipe.
  -t : timeout to wait response in seconds. if it is 0 no response are waited. Default value is 100 seconds
  -v : set verbosity level  [0|1|2].
 ```

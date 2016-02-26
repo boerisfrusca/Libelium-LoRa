@@ -63,6 +63,10 @@ ifeq ($(NAME),lora_setup)
 
 	CFLAGS+=-D LORA_SETUP=1
 endif
+ifeq ($(NAME),lora_daemon)
+
+	CFLAGS+=-D LORA_DAEMON=1
+endif
  
 LFLAGS=$(LPATH) 
 

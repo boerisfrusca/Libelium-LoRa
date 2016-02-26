@@ -565,7 +565,7 @@ void print_help(void)
 {
   std::cerr << "WaspMote Lo-Ra - " << LORA_NAME << " v" << LORA_VERSION << std::endl;
   std::cerr << std::endl;
-  std::cerr << "Usage: " << LORA_NAME << " [-v 0|1|2]  [-s serial_device] [-b serial_bitrate] [-a address] [-f frequency] [-c channel]";
+  std::cerr << "Usage: " << LORA_NAME << " [-v 0|1|2] [-d serial_device] [-b serial_bitrate] [-a address] [-f frequency] [-c channel]";
   std::cerr << " [-w bandwidth] [-r coding_rate] [-s spreading_factor]"
       << std::endl;
   std::cerr << "       " << LORA_NAME << " -h" << std::endl << std::endl;

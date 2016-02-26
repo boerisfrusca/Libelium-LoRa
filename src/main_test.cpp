@@ -243,7 +243,7 @@ void print_help(void)
 {
   std::cerr << "WaspMote Lo-Ra - " << LORA_NAME << " v" << LORA_VERSION << std::endl;
   std::cerr << std::endl;
-  std::cerr << "Usage: " << LORA_NAME << " [-v 0|1|2]  [-s serial_device] [-b serial_bitrate]"
+  std::cerr << "Usage: " << LORA_NAME << " [-v 0|1|2] [-d serial_device] [-b serial_bitrate]"
       << std::endl;
   std::cerr << "       " << LORA_NAME << " -h" << std::endl << std::endl;
   std::cerr << " -b : serial bitrate [1200|2400|4800|9600|19200|38400|57600|115200]. Default value is " << SERIAL_BITRATE << "." << std::endl;

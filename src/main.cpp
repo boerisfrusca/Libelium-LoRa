@@ -23,6 +23,10 @@
 #endif
 #ifdef LORA_SETUP
 #include "main_setup.h"
+#else
+#ifdef LORA_DAEMON
+#include "main_daemon.h"
+#endif
 #endif
 #endif
 
@@ -58,6 +62,9 @@ int main(int argc, char **argv)
 #endif
 #ifdef LORA_SETUP
   ret = main_setup(argc, argv);
+#endif
+#ifdef LORA_DAEMON
+  ret = main_daemon(argc, argv);
 #endif
   return ret;
 }
