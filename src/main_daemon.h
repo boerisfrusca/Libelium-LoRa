@@ -8,7 +8,7 @@
 #ifndef MAIN_DAEMON_H_
 #define MAIN_DAEMON_H_
 
-//#define LORA_DAEMON
+#define LORA_DAEMON
 #ifdef LORA_DAEMON
 
 /*****************************************************************************
@@ -21,6 +21,12 @@
 
 #define PIPE_NAME "/tmp/lora.pipe"
 
+#include "circularbuffer.h"
+/**
+ * Data buffer.
+ */
+typedef CircularBuffer<uint8_t> Buffer;
+
 /*****************************************************************************
  * FUNCTIONS
  ****************************************************************************/
@@ -32,7 +38,6 @@
  *
  */
 void print_help(void);
-
 
 /**
  * @brief Main function for the Lo-Ra daemon.
@@ -61,6 +66,7 @@ void signalCallbackHandler(int signum);
  */
 bool fileExists(const char* file);
 
+uint8_t createDataCommand(uint8_t *buffer, uint8_t dest, std::string &msg);
 
 #endif
 

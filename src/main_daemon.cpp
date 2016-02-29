@@ -207,12 +207,32 @@ int main_daemon(int argc, char **argv)
     time_t end;
 
     size_t t = 0;
-    size_t n = 0;
 
-    const uint8_t buf_sz = 255;
+    //const uint8_t buf_sz = 255;
 
     uint8_t tx_buffer[buf_sz] = { 0 };
     uint8_t rx_buffer[buf_sz] = { 0 };
+    Buffer cRxBuffer;
+    Buffer cPipeBuffer;
+    try
+    {
+      cRxBuffer.resize(buf_sz);
+    }
+    catch (std::exception &e)
+    {
+      throw(e);
+      return 0;
+    }
+
+    try
+    {
+      cPipeBuffer.resize(buf_sz);
+    }
+    catch (std::exception &e)
+    {
+      throw(e);
+      return 0;
+    }
 
     // Empty Rx serial buffer
     rx_buffer_flush(serial);
@@ -237,6 +257,7 @@ int main_daemon(int argc, char **argv)
       close(pp);
     }
 
+/*
     V_INFO("Open pipe %s.\n", pipe.c_str());
     pp = open(pipe.c_str(), O_RDONLY, 0);
     if (pp == -1)
@@ -244,12 +265,25 @@ int main_daemon(int argc, char **argv)
       perror("Error: open while opening pipe!");
       return 0;
     }
+*/
 
     while (running == 1)
     {
 
+      V_INFO("Open pipe %s.\n", pipe.c_str());
+
+      pp = open(pipe.c_str(), O_RDONLY, 0);
+      if (pp == -1)
+      {
+        perror("Error: open while opening pipe!");
+        return 0;
+      }
+
       memset(tx_buffer, 0, buf_sz);
       long int n = read(pp, (void*) tx_buffer, (unsigned long) buf_sz);
+
+//      close(pp);
+
 
       if (n < 0)
       {
@@ -259,104 +293,177 @@ int main_daemon(int argc, char **argv)
 
       if (n != 0)
       {
-        char *sentence = (char*) tx_buffer;
-
-        std::stringstream ss((const char*) sentence);
-
-        if (sentence != NULL)
+        if (cPipeBuffer.size() == cPipeBuffer.capacity())
         {
-          while (std::getline(ss, msg, '\n'))
+          V_DEBUG("Pipe buffer is full. It will be cleaned!\n");
+          cPipeBuffer.drop(cPipeBuffer.capacity());
+        }
+        else
+        {
+          cPipeBuffer.write(tx_buffer, n);
+
+          unsigned int start = 0;
+
+          for (unsigned int i = 0; i < cPipeBuffer.size() ; i++)
           {
-            std::cout << msg << std::endl;
-
-
-
-            // Create DATA command
-            lora::command::Data cmd;
-
-            V_INFO("Create DATA command\n");
-            V_INFO("Destination Address: %d\n", dest);
-            V_INFO("Message            : %s\n", msg.c_str());
-            cmd.setDest(dest);
-            cmd.setData(msg);
-            sz = cmd.serialize(tx_buffer, buf_sz);
-
-            V_INFO("Send command\n");
-            if (serial.send((const char*) tx_buffer, sz))
+            if ( cPipeBuffer.at(i) == '\n' )
             {
+              // Create Message
+              uint8_t buffer[buf_sz] = {0};
 
-              if (timeout)
+              unsigned long n = cPipeBuffer.read(buffer, i - start);
+
+              // Get \n from circular buffer
+              uint8_t c = 0;
+              cPipeBuffer.pop(c);
+
+              char* sentence = (char*) &buffer[0];
+
+              if (buffer[0] == '\n')
               {
-                n = 0;
-                t = 0;
-                bool endPck = false;
+                sentence = (char*) &buffer[1];
+              }
 
-                time(&now);
-                end = now + timeout;
-                memset(rx_buffer, 0, buf_sz);
+              msg = (char*) sentence;
 
-                V_INFO("Waiting response\n");
-                while ((now < end) && !endPck)
+              start = i;
+
+              memset(buffer, 0, buf_sz);
+
+
+              //Create Data Command
+              //std::cout << "MSG: " << msg << std::endl;
+              sz = createDataCommand(tx_buffer, dest, msg);
+
+              if ( sz )
+              {
+                // Process Message
+                V_INFO("Send command\n");
+                size_t n = serial.send((const char*) tx_buffer, sz);
+                V_INFO("Sent %d bytes.\n", n);
+
+                if (n)
                 {
 
-                  // Receive data
-                  ssize_t nb = buf_sz - t;
-                  n = serial.receive((char*) &rx_buffer[t], nb);
-
-                  //std::cout << now << "  " << end << std::endl;
-                  // Process data received
-                  if (n)
+                  if (timeout)
                   {
-                    V_DEBUG("Received %d bytes\n", n);
+                    n = 0;
+                    t = 0;
+                    bool endPck = false;
 
-                    if (nb == 0)
+                    time(&now);
+                    end = now + timeout;
+                    memset(rx_buffer, 0, buf_sz);
+
+                    V_INFO("Waiting response\n");
+                    while ((now < end) && !endPck)
                     {
-                      V_DEBUG("Receiver buffer is full\n");
+
+                      // Receive data
+                      //ssize_t nb = buf_sz - t;
+                      //n = serial.receive((char*) &rx_buffer[t], nb);
+                      n = serial.receive((char*) &rx_buffer[0], buf_sz);
+
+                      //std::cout << now << "  " << end << std::endl;
+                      // Process data received
+                      if (n)
+                      {
+                        V_DEBUG("Received %d bytes\n", n);
+
+                        for (uint16_t i = 0; i < n; i++)
+                        {
+                          V_DEBUG("[%d] %x\n", t + i, rx_buffer[i]);
+                        }
+                        //if (nb == 0)
+                        if (cRxBuffer.size() == cRxBuffer.capacity())
+                        {
+                          V_DEBUG("Receiver buffer is full. It will be cleaned!\n");
+                          cRxBuffer.drop(cRxBuffer.capacity());
+                        }
+                        else
+                        {
+                          cRxBuffer.write(rx_buffer, n);
+
+                          enum _state_0
+                          {
+                            LOOKFOR_SOH, LOOKFOR_EOT, CMD_FOUND
+                          };
+
+                          uint8_t state = LOOKFOR_SOH;
+                          endPck = false;
+
+                          for (unsigned int i = 0; i < cRxBuffer.size() && !endPck; i++)
+                          {
+                            //V_DEBUG("[%d] %x\n", t + i, rx_buffer[t + i]);
+                            unsigned long index = i;
+                            //if (rx_buffer[t + i] == lora::Command::EOT)
+
+                            V_DEBUG("State: %d , endPck: %d, [%d] %x\n", state, endPck, index, cRxBuffer.at(index));
+
+                            switch (state)
+                            {
+                              case LOOKFOR_SOH :
+                              {
+                                if (cRxBuffer.at(index) == lora::Command::SOH)
+                                {
+                                  V_DEBUG("Found SOH\n");
+                                  state = LOOKFOR_EOT;
+                                }
+
+                              }
+                                break;
+                              case LOOKFOR_EOT :
+                              {
+                                if (cRxBuffer.at(index) == lora::Command::EOT)
+                                {
+                                  V_DEBUG("Found EOT\n");
+                                  state = CMD_FOUND;
+                                  //cRxBuffer.dump(true);
+                                  endPck = true;
+                                }
+
+                              }
+                                break;
+                            }
+
+                          }
+                          memset(rx_buffer, 0, buf_sz);
+                          t += n;
+                        }
+
+                      }
+                      usleep(100);
+                      time(&now);
+                    }
+
+                    if (!t)
+                    {
+                      std::cerr << "No response received!" << std::endl;
                     }
                     else
                     {
-                      for (uint16_t i = 0; i < n; i++)
-                      {
-                        V_DEBUG("[%d] %x\n", t + i, rx_buffer[t + i]);
-                        if (rx_buffer[t + i] == 0x04)
-                        {
-                          V_DEBUG("Found EOT\n");
-                          endPck = true;
-                        }
-                      }
-                      t += n;
+                      unsigned long n = cRxBuffer.read(rx_buffer, t);
+                      process_buffer((uint8_t *) rx_buffer, (size_t) t);
+                      cRxBuffer.drop(n);
                     }
-                  }
-                  usleep(100);
-                  time(&now);
-                }
 
-                if (!t)
-                {
-                  std::cerr << "No response received!" << std::endl;
-                }
-                else
-                {
-                  process_buffer((uint8_t *) rx_buffer, (size_t) t);
+                  }
                 }
 
               }
+
             }
-
-
           }
         }
-
 
       }
       usleep(100);
     }
 
-    close(pp);
+    //close(pp);
     std::cout << std::endl << "exit" << std::endl;
 
     return 1;
-
 
   }
   else
@@ -410,4 +517,19 @@ void signalCallbackHandler(int signum)
   exit(0);
 }
 
+
+uint8_t createDataCommand(uint8_t *buffer, uint8_t dest, std::string &msg)
+{
+  // Create DATA command
+  lora::command::Data cmd;
+
+  V_INFO("Create DATA command\n");
+  V_INFO("Destination Address: %d\n", dest);
+  V_INFO("Message            : %s\n", msg.c_str());
+  cmd.setDest(dest);
+  cmd.setData(msg);
+
+  return cmd.serialize(buffer, buf_sz);
+
+}
 #endif
