@@ -8,7 +8,7 @@
 #ifndef MAIN_DAEMON_H_
 #define MAIN_DAEMON_H_
 
-#define LORA_DAEMON
+//#define LORA_DAEMON
 #ifdef LORA_DAEMON
 
 /*****************************************************************************

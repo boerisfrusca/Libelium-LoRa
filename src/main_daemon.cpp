@@ -257,7 +257,7 @@ int main_daemon(int argc, char **argv)
       close(pp);
     }
 
-/*
+
     V_INFO("Open pipe %s.\n", pipe.c_str());
     pp = open(pipe.c_str(), O_RDONLY, 0);
     if (pp == -1)
@@ -265,34 +265,41 @@ int main_daemon(int argc, char **argv)
       perror("Error: open while opening pipe!");
       return 0;
     }
-*/
+
+
+    time_t t0;
+    time_t t1;
+
+    t0 = time(&t0);
+    t1 = time(&t1);
 
     while (running == 1)
     {
 
+/*
       V_INFO("Open pipe %s.\n", pipe.c_str());
-
       pp = open(pipe.c_str(), O_RDONLY, 0);
       if (pp == -1)
       {
         perror("Error: open while opening pipe!");
         return 0;
       }
-
+*/
       memset(tx_buffer, 0, buf_sz);
       long int n = read(pp, (void*) tx_buffer, (unsigned long) buf_sz);
-
 //      close(pp);
 
 
       if (n < 0)
       {
-        perror("Error: read( ): ");
+        perror("Error: read pipe ");
         return 1;
       }
 
       if (n != 0)
       {
+
+        std::cout << "Pipe: " << tx_buffer << std::endl;
         if (cPipeBuffer.size() == cPipeBuffer.capacity())
         {
           V_DEBUG("Pipe buffer is full. It will be cleaned!\n");
@@ -302,43 +309,40 @@ int main_daemon(int argc, char **argv)
         {
           cPipeBuffer.write(tx_buffer, n);
 
-          unsigned int start = 0;
+
+          size_t j = 0;
+          size_t tot = 0;
+          uint8_t buffer[buf_sz] = {0};
 
           for (unsigned int i = 0; i < cPipeBuffer.size() ; i++)
           {
+            buffer[j] = cPipeBuffer.at(i);
+/*
+            std::cout << "s: " << std::dec << start << std::endl;
+            std::cout << "i: " << std::dec << i << std::endl;
+            std::cout << "cPipeBuffer.at(i): " << std::dec << cPipeBuffer.at(i) << std::endl;
+            std::cout << "tot: " << std::dec << tot << std::endl;
+*/
             if ( cPipeBuffer.at(i) == '\n' )
             {
-              // Create Message
-              uint8_t buffer[buf_sz] = {0};
-
-              unsigned long n = cPipeBuffer.read(buffer, i - start);
-
-              // Get \n from circular buffer
-              uint8_t c = 0;
-              cPipeBuffer.pop(c);
-
-              char* sentence = (char*) &buffer[0];
-
-              if (buffer[0] == '\n')
-              {
-                sentence = (char*) &buffer[1];
-              }
-
-              msg = (char*) sentence;
-
-              start = i;
-
-              memset(buffer, 0, buf_sz);
-
+              buffer[j]  = 0;
+              std::cout << "Message: " << buffer << std::endl;
 
               //Create Data Command
-              //std::cout << "MSG: " << msg << std::endl;
-              sz = createDataCommand(tx_buffer, dest, msg);
+              std::string msg = ((char*) buffer);
+              sz = createDataCommand( tx_buffer, dest, msg );
+
+              std::cout << msg_string(tx_buffer, sz) << std::endl;
 
               if ( sz )
               {
                 // Process Message
                 V_INFO("Send command\n");
+
+                t1 = time(&t1);
+                std::cout << "Time: "  << (int) t1 - t0 << std::endl;
+                t0 = t1;
+
                 size_t n = serial.send((const char*) tx_buffer, sz);
                 V_INFO("Sent %d bytes.\n", n);
 
@@ -438,12 +442,15 @@ int main_daemon(int argc, char **argv)
 
                     if (!t)
                     {
-                      std::cerr << "No response received!" << std::endl;
+                      std::cerr << "No response CMD received!" << std::endl;
                     }
                     else
                     {
                       unsigned long n = cRxBuffer.read(rx_buffer, t);
+
+                      /*uint8_t err = */
                       process_buffer((uint8_t *) rx_buffer, (size_t) t);
+
                       cRxBuffer.drop(n);
                     }
 
@@ -452,8 +459,22 @@ int main_daemon(int argc, char **argv)
 
               }
 
+              memset(buffer, 0, buf_sz);
+              j = 0;
+              tot = i;
             }
+            else
+            {
+              buffer[j++] = cPipeBuffer.at(i);
+
+            }
+
           }
+
+          std::cout << "Drop N byte: " << tot << std::endl;
+          /*unsigned long n = */cPipeBuffer.drop(tot + 1);
+
+
         }
 
       }
