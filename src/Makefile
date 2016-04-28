@@ -73,7 +73,7 @@ LFLAGS=$(LPATH)
 IDIRS=-I.	
 LDIRS=
 
-LIBS=
+LIBS=-lpthread
 
 SRC=$(wildcard *.cpp) $(wildcard lora/*.cpp)#main.cpp wsn.cpp 
 

@@ -3,10 +3,10 @@
 The SX1272 LoRa module can work in several embedded system as Waspmote, Plug & Sense, Arduino, Raspeberry Pi or Intel Galileo. 
 The normal topology for this technology is a star: all the nodes transmit towards a central sink node. This central sink node can be:
 
-- another node 
-- one LoRa Gateway
+- another node;
+- a LoRa Gateway.
 
-This project want gives some tools for using a LoRa module in a linux system for testing the reception and sending of LoRa ASCII message.
+This project want give some tools for using a LoRa module on a Linux system for testing the reception and sending of LoRa ASCII messages.
 To perform these actions you need a LoRa node and a LoRa Gateway, the device that allows you to communicate through a USB port with the module.
 
 You also need a terminal program like Cutecom (Linux), Hyperterminal or Putty (Windows). 
@@ -157,7 +157,7 @@ Usage: lora_daemon [-v 0|1|2] [-s serial_device] [-b serial_bitrate] [-a [0-255]
  -d : serial device. Default value is /dev/ttyUSB0.
  -h : display this message.
  -p : pipe used for receiving data to send. Default value is /tmp/lora.pipe.
- -t : timeout to wait response in seconds. if it is 0 no response are waited. Default value is 100 seconds
+ -t : minimum time between two send operation. Default value is 4 seconds
  -v : set verbosity level  [0|1|2].
 ```
 

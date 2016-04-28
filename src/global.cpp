@@ -88,12 +88,14 @@ bool closeSerial(lora::Serial &serial)
 }
 
 
-void process_buffer(uint8_t *rx_buffer, size_t sz)
+uint8_t process_buffer(uint8_t *rx_buffer, size_t sz)
 {
   uint8_t payload[buf_sz] = { 0 };
   uint8_t type = 0;
   size_t psize = 0;
   uint16_t crc = 0;
+
+  uint8_t f_ret = NO_ERROR;
 
   V_DEBUG("COMMAND: %s\n", msg_string(rx_buffer, sz).c_str());
 
@@ -138,6 +140,15 @@ void process_buffer(uint8_t *rx_buffer, size_t sz)
           V_INFO("Command type is ERROR\n");
           lora::command::Error m;
           m.createFromBuffer((uint8_t *) payload, psize);
+
+          if (m.error() == "COM_ERROR")
+          {
+            f_ret = COM_ERROR;
+          }
+          else
+          {
+            f_ret = UNKKOWN_ERROR;
+          }
 
           std::cout << "Lo-Ra error : " << m.error() << std::endl;
         }
@@ -206,6 +217,8 @@ void process_buffer(uint8_t *rx_buffer, size_t sz)
       break;
 
   }
+
+  return f_ret;
 }
 
 void rx_buffer_flush (lora::Serial &serial)

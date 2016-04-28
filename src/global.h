@@ -36,6 +36,7 @@
 #define FLUSH_TIMEOUT    5                           // Time of reading at
                                                      // the start (sec)
 #define RX_TIMEOUT       100                         // Receive timeout (sec)
+#define TX_TIMEOUT       4                           // Transmission timeout (sec)
 
 /*****************************************************************************
  * TYPE AND ENUM DEFINITONS
@@ -128,6 +129,25 @@ bool closeSerial(lora::Serial &serial);
  */
 std::string msg_string(uint8_t *buffer, size_t sz);
 
+
+/**
+ * @brief Error codes for process_buffer function.
+ *
+ *
+ */
+enum _proces_error_codes
+{
+  /// No errors
+  NO_ERROR = 0,
+
+  /// COM Error
+  COM_ERROR = 1,
+
+  /// Unknown error
+  UNKKOWN_ERROR,
+};
+
+
 /**
  * @brief Processes all bytes of buffer looking for a Lo-Ra command.
  *
@@ -138,7 +158,7 @@ std::string msg_string(uint8_t *buffer, size_t sz);
  * @param[in] sz buffer size.
  *
  */
-void process_buffer(uint8_t *rx_buffer, size_t sz);
+uint8_t process_buffer(uint8_t *rx_buffer, size_t sz);
 
 /**
  * @brief Reads all bytes present into the serial receive buffer.
